@@ -1,0 +1,48 @@
+name: Build Mod
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 for Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      # Cache Gradle dependencies to speed up builds
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # Build the mod with RetroFuturaGradle
+      # RFG will automatically use Java 8 toolchain for compilation
+      - name: Build with Gradle
+        run: ./gradlew build --no-daemon
+      
+      - name: Upload All Mod Jars
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoAnimTextures
+          path: build/libs/*.jar
+          if-no-files-found: error
