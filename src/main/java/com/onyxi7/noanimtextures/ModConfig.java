@@ -7,10 +7,13 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 @Config(modid = "noanimtextures", name = "NoAnimTextures")
-public class Config {
+public class ModConfig {
     
     @Config.Comment("Enable/disable texture animation disabling")
     public static boolean disableAnimations = true;
+    
+    @Config.Comment("Keep compass and clock animations enabled")
+    public static boolean keepCompassClockAnimated = true;
     
     @Mod.EventBusSubscriber(modid = "noanimtextures")
     private static class EventHandler {
