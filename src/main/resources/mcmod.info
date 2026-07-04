@@ -1,0 +1,16 @@
+[
+{
+  "modid": "noanimtextures",
+  "name": "NoAnimTextures",
+  "description": "A Minecraft development project.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "https://github.com/Onyx-i7",
+  "updateUrl": "",
+  "authorList": ["Onyx-i7"],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
