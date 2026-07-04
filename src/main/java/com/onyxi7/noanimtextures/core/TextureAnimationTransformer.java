@@ -8,15 +8,15 @@ public class TextureAnimationTransformer implements IClassTransformer {
     
     @Override
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
-        if (transformedName.equals("net.minecraft.client.renderer.texture.TextureAtlasSprite")) {
-            System.out.println("[NoAnimTextures] Transforming TextureAtlasSprite!");
-            return transformTextureAtlasSprite(basicClass);
+        if (transformedName.equals("net.minecraft.client.renderer.texture.TextureMap")) {
+            System.out.println("[NoAnimTextures] Transforming TextureMap!");
+            return transformTextureMap(basicClass);
         }
         return basicClass;
     }
     
-    private byte[] transformTextureAtlasSprite(byte[] basicClass) {
-        System.out.println("[NoAnimTextures] Starting transformation...");
+    private byte[] transformTextureMap(byte[] basicClass) {
+        System.out.println("[NoAnimTextures] Starting TextureMap transformation...");
         
         if (basicClass == null) {
             System.out.println("[NoAnimTextures] ERROR: basicClass is null!");
@@ -27,18 +27,22 @@ public class TextureAnimationTransformer implements IClassTransformer {
         ClassNode classNode = new ClassNode();
         classReader.accept(classNode, 0);
         
-        System.out.println("[NoAnimTextures] Class loaded, searching for updateAnimation method...");
+        System.out.println("[NoAnimTextures] Searching for tickAnimations method...");
         
         for (MethodNode method : classNode.methods) {
-            System.out.println("[NoAnimTextures] Found method: " + method.name + method.desc);
-            
-            if (method.name.equals("updateAnimation") && method.desc.equals("()V")) {
-                System.out.println("[NoAnimTextures] Found updateAnimation! Replacing with empty method...");
+            if (method.desc.equals("()V") && containsAnimationLoop(method)) {
+                System.out.println("[NoAnimTextures] Found tickAnimations method: " + method.name);
                 
                 method.instructions.clear();
+                if (method.tryCatchBlocks != null) {
+                    method.tryCatchBlocks.clear();
+                }
+                if (method.visibleLocalVariableAnnotations != null) {
+                    method.visibleLocalVariableAnnotations.clear();
+                }
                 method.instructions.add(new InsnNode(Opcodes.RETURN));
                 
-                System.out.println("[NoAnimTextures] Method replaced successfully!");
+                System.out.println("[NoAnimTextures] tickAnimations replaced with empty method!");
                 
                 ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
                 classNode.accept(classWriter);
@@ -47,7 +51,30 @@ public class TextureAnimationTransformer implements IClassTransformer {
             }
         }
         
-        System.out.println("[NoAnimTextures] WARNING: updateAnimation method not found!");
+        System.out.println("[NoAnimTextures] WARNING: tickAnimations method not found!");
         return basicClass;
+    }
+    
+    private boolean containsAnimationLoop(MethodNode method) {
+        boolean hasIterator = false;
+        boolean hasInvokeVirtualVoid = false;
+        int invokeCount = 0;
+        
+        for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {
+            if (insn.getType() == AbstractInsnNode.METHOD_INSN) {
+                MethodInsnNode methodInsn = (MethodInsnNode) insn;
+                
+                if (methodInsn.name.equals("hasNext") || methodInsn.name.equals("next")) {
+                    hasIterator = true;
+                }
+                
+                if (methodInsn.desc.equals("()V") && insn.getOpcode() == Opcodes.INVOKEVIRTUAL) {
+                    hasInvokeVirtualVoid = true;
+                    invokeCount++;
+                }
+            }
+        }
+        
+        return hasIterator && hasInvokeVirtualVoid && invokeCount >= 1;
     }
 }
