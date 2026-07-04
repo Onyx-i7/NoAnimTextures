@@ -49,6 +49,8 @@ sourceSets {
 }
 
 tasks.named('processResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
     def replaceProperties = [
         version: project.version,
         mcversion: project.minecraft.mcVersion
