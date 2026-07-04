@@ -22,13 +22,33 @@ public class TextureAnimationTransformer implements IClassTransformer {
         ClassNode classNode = new ClassNode();
         classReader.accept(classNode, 0);
         
-        System.out.println("[NoAnimTextures] Searching for animation tick method...");
+        System.out.println("[NoAnimTextures] Analyzing ALL methods in TextureMap...");
         
+        // Buscar TODOS los métodos que llaman a TextureAtlasSprite
         for (MethodNode method : classNode.methods) {
-            if (method.desc.equals("()V") && iteratesOverSprites(method)) {
-                System.out.println("[NoAnimTextures] Found animation method: " + method.name);
+            boolean callsSpriteMethod = false;
+            String calledMethod = "";
+            
+            for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {
+                if (insn.getType() == AbstractInsnNode.METHOD_INSN) {
+                    MethodInsnNode methodInsn = (MethodInsnNode) insn;
+                    
+                    // Buscar cualquier llamada a TextureAtlasSprite (nombre SRG o normal)
+                    if (methodInsn.owner.equals("net/minecraft/client/renderer/texture/TextureAtlasSprite") ||
+                        methodInsn.owner.equals("cdq") ||
+                        methodInsn.owner.equals("bua")) {
+                        
+                        System.out.println("[NoAnimTextures] Method " + method.name + " calls " + methodInsn.owner + "." + methodInsn.name);
+                        callsSpriteMethod = true;
+                        calledMethod = methodInsn.name;
+                    }
+                }
+            }
+            
+            // Si este método llama a un método void de TextureAtlasSprite, eliminar esa llamada
+            if (callsSpriteMethod && calledMethod.startsWith("func_") && calledMethod.endsWith("_l")) {
+                System.out.println("[NoAnimTextures] Found method with sprite call: " + method.name + " -> " + calledMethod);
                 
-                // Eliminar todas las llamadas a updateAnimation
                 int removedCalls = 0;
                 AbstractInsnNode insn = method.instructions.getFirst();
                 while (insn != null) {
@@ -36,25 +56,23 @@ public class TextureAnimationTransformer implements IClassTransformer {
                     
                     if (insn.getType() == AbstractInsnNode.METHOD_INSN) {
                         MethodInsnNode methodInsn = (MethodInsnNode) insn;
-                        // Buscar llamadas a updateAnimation en TextureAtlasSprite
-                        if (methodInsn.owner.equals("net/minecraft/client/renderer/texture/TextureAtlasSprite") &&
-                            methodInsn.desc.equals("()V") &&
-                            (methodInsn.name.equals("func_94219_l") || methodInsn.name.equals("updateAnimation"))) {
+                        if ((methodInsn.owner.equals("net/minecraft/client/renderer/texture/TextureAtlasSprite") ||
+                             methodInsn.owner.equals("cdq") ||
+                             methodInsn.owner.equals("bua")) &&
+                            methodInsn.name.equals(calledMethod) &&
+                            methodInsn.desc.equals("()V")) {
                             
                             System.out.println("[NoAnimTextures] Removing call to " + methodInsn.name);
                             method.instructions.remove(insn);
                             removedCalls++;
                         }
                     }
-                    
                     insn = next;
                 }
                 
                 if (removedCalls > 0) {
-                    System.out.println("[NoAnimTextures] Removed " + removedCalls + " updateAnimation calls!");
+                    System.out.println("[NoAnimTextures] Removed " + removedCalls + " calls!");
                 }
-                
-                break;
             }
         }
         
@@ -62,32 +80,5 @@ public class TextureAnimationTransformer implements IClassTransformer {
         classNode.accept(classWriter);
         System.out.println("[NoAnimTextures] Transformation complete!");
         return classWriter.toByteArray();
-    }
-    
-    // Verificar si el método itera sobre una lista de sprites
-    private boolean iteratesOverSprites(MethodNode method) {
-        boolean hasIterator = false;
-        boolean hasSpriteField = false;
-        
-        for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {
-            if (insn.getType() == AbstractInsnNode.METHOD_INSN) {
-                MethodInsnNode methodInsn = (MethodInsnNode) insn;
-                // Buscar iteradores
-                if (methodInsn.name.equals("hasNext") || methodInsn.name.equals("next")) {
-                    hasIterator = true;
-                }
-            }
-            
-            if (insn.getType() == AbstractInsnNode.FIELD_INSN) {
-                FieldInsnNode fieldInsn = (FieldInsnNode) insn;
-                // Buscar acceso al campo de sprites
-                if (fieldInsn.desc.equals("Ljava/util/List;") || 
-                    fieldInsn.desc.equals("Ljava/util/ArrayList;")) {
-                    hasSpriteField = true;
-                }
-            }
-        }
-        
-        return hasIterator && hasSpriteField;
     }
 }
