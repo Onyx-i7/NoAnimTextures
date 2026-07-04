@@ -9,8 +9,8 @@ import java.util.Map;
 public class NoAnimTexturesCoreMod implements IFMLLoadingPlugin {
     
     @Override
-    public String[] getASMData() {
-        return new String[0];
+    public String[] getASMTransformerClass() {
+        return new String[] { "com.onyxi7.noanimtextures.core.TextureAnimationTransformer" };
     }
     
     @Override
